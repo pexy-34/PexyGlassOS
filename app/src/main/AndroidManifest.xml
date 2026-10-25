@@ -11,11 +11,10 @@
     <application
         android:allowBackup="false"
         android:label="PexyGlassOS"
-        android:theme="@android:style/Theme.Material.NoActionBar"
-        android:usesCleartextTraffic="false">
+        android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.glassos.launcher.MainActivity"
             android:exported="true"
             android:screenOrientation="landscape">
 
