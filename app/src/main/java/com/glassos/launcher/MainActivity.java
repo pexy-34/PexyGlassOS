@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
+import android.view.KeyEvent;
 import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -16,11 +17,18 @@ import android.widget.Toast;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class MainActivity extends Activity {
 
     private final Handler handler = new Handler();
     private TextView clockView;
+    private LinearLayout dock;
+    private final ArrayList<String> shelfApps = new ArrayList<>();
+    private boolean reorderMode;
+    private int movingIndex = -1;
 
     private final String[] appNames = {
         "Netflix", "Prime Video", "YouTube",
@@ -39,6 +47,16 @@ public class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        shelfApps.addAll(Arrays.asList(appNames));
+        String savedOrder = getPreferences(MODE_PRIVATE).getString("shelf_order", null);
+        if (savedOrder != null) {
+            ArrayList<String> restored = new ArrayList<>(Arrays.asList(savedOrder.split("\\n")));
+            if (restored.size() == appNames.length && restored.containsAll(Arrays.asList(appNames))) {
+                shelfApps.clear();
+                shelfApps.addAll(restored);
+            }
+        }
 
         getWindow().getDecorView().setSystemUiVisibility(
             View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -121,53 +139,13 @@ public class MainActivity extends Activity {
         ));
 
         // Six-icon bottom dock
-        LinearLayout dock = new LinearLayout(this);
+        dock = new LinearLayout(this);
         dock.setOrientation(LinearLayout.HORIZONTAL);
         dock.setGravity(Gravity.CENTER);
         dock.setPadding(12, 12, 12, 12);
         dock.setBackground(round(Color.rgb(31, 41, 60), 24));
 
-        for (int i = 0; i < appNames.length; i++) {
-            final String name = appNames[i];
-
-            LinearLayout item = new LinearLayout(this);
-            item.setOrientation(LinearLayout.VERTICAL);
-            item.setGravity(Gravity.CENTER);
-
-            String symbol = name.equals("Settings") ? "⚙"
-                : name.equals("Apps") ? "▦" : "▶";
-
-            TextView icon = text(symbol, 27, Color.WHITE, true);
-            icon.setGravity(Gravity.CENTER);
-            icon.setBackground(round(colors[i], 16));
-
-            LinearLayout.LayoutParams iconParams =
-                new LinearLayout.LayoutParams(68, 58);
-            item.addView(icon, iconParams);
-
-            TextView label = text(name, 13, Color.WHITE, false);
-            label.setGravity(Gravity.CENTER);
-
-            LinearLayout.LayoutParams labelParams =
-                new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 30
-                );
-            labelParams.topMargin = 5;
-
-            item.addView(label, labelParams);
-
-            LinearLayout.LayoutParams itemParams =
-                new LinearLayout.LayoutParams(0, 95, 1);
-
-            dock.addView(item, itemParams);
-
-            item.setFocusable(true);
-            item.setOnClickListener(v ->
-                Toast.makeText(
-                    this, name + " selected", Toast.LENGTH_SHORT
-                ).show()
-            );
-        }
+        buildDock();
 
         LinearLayout.LayoutParams dockParams =
             new LinearLayout.LayoutParams(
@@ -178,6 +156,111 @@ public class MainActivity extends Activity {
         page.addView(dock, dockParams);
 
         setContentView(root);
+        if (dock.getChildCount() > 0) dock.getChildAt(0).requestFocus();
+    }
+
+    /** Recreate the shelf in its saved order. Holding Select enters move mode. */
+    private void buildDock() {
+        if (dock == null) return;
+        dock.removeAllViews();
+        for (int i = 0; i < shelfApps.size(); i++) {
+            final int index = i;
+            final String name = shelfApps.get(i);
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
+            item.setGravity(Gravity.CENTER);
+            item.setFocusable(true);
+            item.setFocusableInTouchMode(false);
+            item.setBackground(round(Color.TRANSPARENT, 14));
+
+            String symbol = name.equals("Settings") ? "⚙" : name.equals("Apps") ? "▦" : "▶";
+            TextView icon = text(symbol, 27, Color.WHITE, true);
+            icon.setGravity(Gravity.CENTER);
+            icon.setBackground(round(colors[Arrays.asList(appNames).indexOf(name)], 16));
+            item.addView(icon, new LinearLayout.LayoutParams(68, 58));
+
+            TextView label = text(name, 13, Color.WHITE, false);
+            label.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 30);
+            labelParams.topMargin = 5;
+            item.addView(label, labelParams);
+            dock.addView(item, new LinearLayout.LayoutParams(0, 95, 1));
+
+            item.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    v.setBackground(round(Color.rgb(72, 91, 118), 14));
+                    if (reorderMode) movingIndex = index;
+                } else {
+                    v.setBackground(round(Color.TRANSPARENT, 14));
+                }
+            });
+            item.setOnClickListener(v -> {
+                if (reorderMode) {
+                    reorderMode = false;
+                    saveShelfOrder();
+                    Toast.makeText(this, name + " placed", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, name + " selected", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        if (dock.getChildCount() > 0) dock.getChildAt(Math.max(0, movingIndex)).requestFocus();
+    }
+
+    private void saveShelfOrder() {
+        getPreferences(MODE_PRIVATE).edit().putString("shelf_order", android.text.TextUtils.join("\n", shelfApps)).apply();
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (dock != null && event.getAction() == KeyEvent.ACTION_DOWN) {
+            if (!reorderMode && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER
+                && event.getRepeatCount() >= 1 && focusedDockIndex() >= 0) {
+                reorderMode = true;
+                movingIndex = focusedDockIndex();
+                Toast.makeText(this, "Move mode: use ◀ ▶, press Select to place", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            if (reorderMode) {
+                if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT || event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    int step = event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1;
+                    int next = Math.max(0, Math.min(shelfApps.size() - 1, movingIndex + step));
+                    if (next != movingIndex) {
+                        Collections.swap(shelfApps, movingIndex, next);
+                        movingIndex = next;
+                        buildDock();
+                        Toast.makeText(this, "Position " + (next + 1) + " — press Select to place", Toast.LENGTH_SHORT).show();
+                    }
+                    return true;
+                }
+                if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER || event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
+                    // Ignore the auto-repeat events that initiated the long press.
+                    if (event.getRepeatCount() > 0) return true;
+                    reorderMode = false;
+                    saveShelfOrder();
+                    Toast.makeText(this, "App position saved", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+                    reorderMode = false;
+                    return true;
+                }
+            }
+        }
+        if (reorderMode && event.getAction() == KeyEvent.ACTION_UP
+            && (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER || event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private int focusedDockIndex() {
+        if (dock == null) return -1;
+        for (int i = 0; i < dock.getChildCount(); i++) {
+            if (dock.getChildAt(i).hasFocus()) return i;
+        }
+        return -1;
     }
 
     // FIXED: Return the complete card, not a child TextView.
