@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setPadding(48, 28, 48, 24);
+
         root.addView(page, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
@@ -79,29 +80,41 @@ public class MainActivity extends Activity {
         TextView settings = text("⚙", 22, Color.WHITE, false);
         settings.setGravity(Gravity.CENTER);
         settings.setBackground(round(Color.rgb(42, 52, 72), 18));
+
         LinearLayout.LayoutParams settingsParams =
             new LinearLayout.LayoutParams(54, 48);
         settingsParams.gravity = Gravity.RIGHT;
         settingsParams.topMargin = 8;
+
         page.addView(settings, settingsParams);
+
+        settings.setFocusable(true);
         settings.setOnClickListener(v ->
-            Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this, "Settings coming soon", Toast.LENGTH_SHORT
+            ).show()
         );
 
-        // Open widget area
+        // Widget area
         LinearLayout widgets = new LinearLayout(this);
         widgets.setOrientation(LinearLayout.HORIZONTAL);
         widgets.setGravity(Gravity.CENTER);
         widgets.setPadding(0, 24, 0, 20);
 
-        widgets.addView(widgetCard("GOOD EVENING", "Welcome home"),
-            new LinearLayout.LayoutParams(0, 155, 1));
+        widgets.addView(
+            widgetCard("GOOD EVENING", "Welcome home"),
+            new LinearLayout.LayoutParams(0, 155, 1)
+        );
 
         View gap = new View(this);
-        widgets.addView(gap, new LinearLayout.LayoutParams(18, 1));
+        widgets.addView(
+            gap, new LinearLayout.LayoutParams(18, 1)
+        );
 
-        widgets.addView(widgetCard("WEATHER", "Weather unavailable"),
-            new LinearLayout.LayoutParams(0, 155, 1));
+        widgets.addView(
+            widgetCard("WEATHER", "Weather unavailable"),
+            new LinearLayout.LayoutParams(0, 155, 1)
+        );
 
         page.addView(widgets, new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1
@@ -121,8 +134,10 @@ public class MainActivity extends Activity {
             item.setOrientation(LinearLayout.VERTICAL);
             item.setGravity(Gravity.CENTER);
 
-            TextView icon = text(name.equals("Settings") ? "⚙" :
-                name.equals("Apps") ? "▦" : "▶", 27, Color.WHITE, true);
+            String symbol = name.equals("Settings") ? "⚙"
+                : name.equals("Apps") ? "▦" : "▶";
+
+            TextView icon = text(symbol, 27, Color.WHITE, true);
             icon.setGravity(Gravity.CENTER);
             icon.setBackground(round(colors[i], 16));
 
@@ -132,33 +147,41 @@ public class MainActivity extends Activity {
 
             TextView label = text(name, 13, Color.WHITE, false);
             label.setGravity(Gravity.CENTER);
+
             LinearLayout.LayoutParams labelParams =
                 new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 30);
+                    LinearLayout.LayoutParams.MATCH_PARENT, 30
+                );
             labelParams.topMargin = 5;
+
             item.addView(label, labelParams);
 
             LinearLayout.LayoutParams itemParams =
                 new LinearLayout.LayoutParams(0, 95, 1);
+
             dock.addView(item, itemParams);
 
             item.setFocusable(true);
             item.setOnClickListener(v ->
-                Toast.makeText(this, name + " selected",
-                    Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this, name + " selected", Toast.LENGTH_SHORT
+                ).show()
             );
         }
 
         LinearLayout.LayoutParams dockParams =
             new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 112);
+                LinearLayout.LayoutParams.MATCH_PARENT, 112
+            );
         dockParams.bottomMargin = 8;
+
         page.addView(dock, dockParams);
 
         setContentView(root);
     }
 
-    private TextView widgetCard(String heading, String message) {
+    // FIXED: Return the complete card, not a child TextView.
+    private View widgetCard(String heading, String message) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
@@ -169,37 +192,43 @@ public class MainActivity extends Activity {
         TextView m = text(message, 22, Color.WHITE, true);
 
         card.addView(h);
+
         LinearLayout.LayoutParams messageParams =
             new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            );
         messageParams.topMargin = 12;
+
         card.addView(m, messageParams);
 
-        FrameLayout wrapper = new FrameLayout(this);
-        wrapper.addView(card, new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        ));
-
-        return m;
+        return card;
     }
 
-    private TextView text(String value, int size, int color, boolean bold) {
+    private TextView text(
+        String value, int size, int color, boolean bold
+    ) {
         TextView view = new TextView(this);
         view.setText(value);
         view.setTextSize(size);
         view.setTextColor(color);
-        if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+
+        if (bold) {
+            view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        }
+
         return view;
     }
 
     private android.graphics.drawable.GradientDrawable round(
-        int color, int radius) {
+        int color, int radius
+    ) {
         android.graphics.drawable.GradientDrawable shape =
             new android.graphics.drawable.GradientDrawable();
+
         shape.setColor(color);
         shape.setCornerRadius(radius);
+
         return shape;
     }
 
@@ -208,6 +237,7 @@ public class MainActivity extends Activity {
             String time = new SimpleDateFormat(
                 "HH:mm  EEE, d MMM", Locale.getDefault()
             ).format(new Date());
+
             clockView.setText(time);
         }
 
